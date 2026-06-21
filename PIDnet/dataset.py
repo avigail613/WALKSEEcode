@@ -16,20 +16,10 @@ from config import (
 
 
 class IsraelSidewalkDataset(Dataset):
-    """
-    Dataset לאימון PIDNet על תמונות ישראליות.
-    קורא תמונות מ-dataset/images/ ואנוטציות מ-dataset/gtFine/default/.
-    """
-
     def __init__(self, pairs, augment=False):
-        """
-        pairs   : list of (image_path, label_path)
-        augment : האם להפעיל augmentation אקראי
-        """
         self.pairs   = pairs
         self.augment = augment
 
-        # בניית טבלת remap (גודל 256 — מכסה את כל ערכי uint8)
         self._remap = torch.zeros(256, dtype=torch.long)
         for cvat_id, train_id in CVAT_TO_TRAIN.items():
             self._remap[cvat_id] = train_id
@@ -40,30 +30,22 @@ class IsraelSidewalkDataset(Dataset):
     def __getitem__(self, idx):
         img_path, lbl_path = self.pairs[idx]
 
-        # ── טעינה ──
         img = Image.open(img_path).convert('RGB')
-        lbl = Image.open(lbl_path)   # grayscale / palette
-
-        # ── שינוי גודל ──
+        lbl = Image.open(lbl_path)  
         img = img.resize((IMAGE_WIDTH, IMAGE_HEIGHT), Image.BILINEAR)
         lbl = lbl.resize((IMAGE_WIDTH, IMAGE_HEIGHT), Image.NEAREST)
 
-        # ── Augmentation ──
         if self.augment:
-            # היפוך אופקי אקראי
             if random.random() > 0.5:
                 img = TF.hflip(img)
                 lbl = TF.hflip(lbl)
-            # שינוי בהירות/ניגודיות אקראי
             if random.random() > 0.5:
                 img = TF.adjust_brightness(img, random.uniform(0.75, 1.25))
                 img = TF.adjust_contrast(img,   random.uniform(0.75, 1.25))
 
-        # ── תמונה → tensor מנורמל ──
         img_t = TF.to_tensor(img)
         img_t = TF.normalize(img_t, MEAN, STD)
 
-        # ── תווית → remap → tensor ──
         lbl_arr = torch.from_numpy(np.array(lbl, dtype=np.uint8)).long()
         lbl_arr = self._remap[lbl_arr]
 

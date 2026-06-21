@@ -44,11 +44,20 @@ def _extract_obstacles(model, frame, sidewalk_mask, blocked_classes):
         if overlap < YOLO_OVERLAP_THR:
             continue
 
+        box_area  = (x2 - x1) * (y2 - y1)
+        frame_area = h * w
+        size = round(box_area / frame_area, 4)   # חלק מהתמונה (0-1), גדול = קרוב
+        distance = round(1.0 / size, 1) if size > 0 else 9999.0  # קירוב — קטן = קרוב
+
         obstacles.append({
-            'label':  label,
-            'conf':   round(conf, 2),
-            'bbox':   [x1, y1, x2, y2],
-            'center': ((x1 + x2) // 2, (y1 + y2) // 2),
+            'label':            label,
+            'conf':             round(conf, 2),
+            'bbox':             [x1, y1, x2, y2],
+            'center':           ((x1 + x2) // 2, (y1 + y2) // 2),
+            'moving':           False,           # יעודכן ע"י KalmanTracker
+            'predicted_center': ((x1 + x2) // 2, (y1 + y2) // 2),  # יעודכן ע"י KalmanTracker
+            'size':             size,
+            'distance':         distance,
         })
     return obstacles
 

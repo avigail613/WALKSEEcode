@@ -4,14 +4,14 @@ import torch
 import cv2
 import numpy as np
 
-# ===== הוספת תיקיות ל-path =====
+# הוספת תיקיות ל-path 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)                                    # root — config.py
 sys.path.insert(0, os.path.join(BASE, "PIDnet"))            # convert, mask, models
 sys.path.insert(0, os.path.join(BASE, "YOLOv8-seg"))        # yolo_detect
 
 
-from config import MODEL_PATH, NUM_CLASSES, SIDEWALK_CLASS_ID, CLASS_NAMES
+from config import MODEL_PATH, ISRAEL_NUM_CLASSES, SIDEWALK_CLASS_ID, CLASS_NAMES
 from convert import preprocess
 from mask import get_segmentation_map, get_sidewalk_mask, overlay_mask_on_frame
 from models.pidnet import get_pred_model
@@ -25,7 +25,7 @@ def load_model(model_path):
     print(f"[INFO] מריץ על: {device}")
 
     # בניית הרשת (PIDNet-S)
-    model = get_pred_model(name="pidnet_s", num_classes=NUM_CLASSES)
+    model = get_pred_model(name="pidnet_s", num_classes=ISRAEL_NUM_CLASSES)
     model.eval()
 
     # טעינת משקולות

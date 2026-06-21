@@ -1,38 +1,26 @@
-"""
-train.py — אימון PIDNet-S על הנתונים הישראליים
+import os#ספרייה לעבודה עם מערכת ההפעלה-ניהול קבצים ותיקיות, קריאת משתנים, הרצת פקודות מערכת ועוד
+import sys#ספרייה לגישה למשתני מערכת, ניהול מודולים, יציאה מהתוכנית.מידע על גרסת Python. ועוד
+import random#ספריה להגרלת  נתון-ערבוב רשימות והוצאת נתון אקראי מתוך הרשימה
 
-שימוש:
-    python train.py
+import torch##ספרית אימון מודלים
+import torch.nn as nn#סמודול הרשתות הנוירוניות-פריית שכבות רשת עצבית
+import torch.nn.functional as F#מיועד לחישובים ברשתות נוירוניות
+from torch.utils.data import DataLoader#מנהל את העבודה עבין DATASET למודל-מחלק את הנתונים, ערבב את הסדר,מאפשר לעבור על הנתונים בלולאה ועוד. כדי שהמודל לא יקרוס עם כל כך הרבה נתונים....
 
-הגדרות אימון נמצאות ב-config.py (TRAIN_EPOCHS, TRAIN_BATCH, TRAIN_LR וכו')
-"""
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))#מוסיפה את התיקייה הנוכחית לתיקיית המודלים-(__file__)הקובץ הנוכחי, os.path.abspath(__file__) מחזיר ניתוב הקובץ os.path.dirname() מחזיר רק קובץ התייקיהsys.path.insert-מוסיף לתיקיית המודלים
 
-import os
-import sys
-import random
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+#טעינת הגדרות מודל מ CONFIG 
 from config import (
-    PRETRAINED_PATH, NEW_WEIGHTS_PATH,
-    TRAIN_EPOCHS, TRAIN_BATCH, TRAIN_LR, TRAIN_VAL_SPLIT,
+    PRETRAINED_PATH, NEW_WEIGHTS_PATH,#נתיב למשקולות הקיימות ונתיב לשמירת המשקולות החדשות
+    TRAIN_EPOCHS, TRAIN_BATCH, TRAIN_LR, TRAIN_VAL_SPLIT,#כמה פעמים לעבור על הנתונים,
     ISRAEL_NUM_CLASSES,
 )
 from dataset import IsraelSidewalkDataset, build_pairs
 from models.pidnet import PIDNet
 
 
-# ── טעינת backbone מהמשקולות המאומנות ──────────────────────────
+# טעינת backbone מהמשקולות המאומנות 
 def load_pretrained_backbone(model, pretrained_path, device):
-    """
-    טוען שכבות backbone בלבד מהמשקולות הקיימות (CamVid).
-    שכבות head עם num_classes שונה מדולגות אוטומטית.
-    """
     checkpoint = torch.load(pretrained_path, map_location=device)
     if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
         state_dict = checkpoint['state_dict']
@@ -59,7 +47,6 @@ def load_pretrained_backbone(model, pretrained_path, device):
     print(f"[INFO] Backbone: נטענו {loaded}/{total} שכבות | {new} שכבות head חדשות (אקראיות)")
 
 
-# ── חישוב mean IoU ────────────────────────────────────────────
 def compute_miou(preds, labels, num_classes):
     iou_list = []
     preds_f  = preds.view(-1)
@@ -74,7 +61,6 @@ def compute_miou(preds, labels, num_classes):
     return sum(iou_list) / len(iou_list) if iou_list else 0.0
 
 
-# ── לולאת אימון ────────────────────────────────────────────────
 def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"[INFO] מריץ על: {device}")
@@ -100,7 +86,6 @@ def train():
     val_loader   = DataLoader(val_ds,   batch_size=1,           shuffle=False,
                               num_workers=0, pin_memory=False)
 
-    # ── מודל: PIDNet-S, augment=True לאימון ──
     model = PIDNet(
         m=2, n=3,
         num_classes=ISRAEL_NUM_CLASSES,
@@ -115,7 +100,6 @@ def train():
 
     model.to(device)
 
-    # ── Loss & Optimizer ──
     criterion = nn.CrossEntropyLoss(ignore_index=255)
     optimizer = torch.optim.AdamW(model.parameters(), lr=TRAIN_LR, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=TRAIN_EPOCHS)
@@ -123,7 +107,6 @@ def train():
     os.makedirs(os.path.dirname(NEW_WEIGHTS_PATH), exist_ok=True)
     best_miou = 0.0
 
-    # ── לולאה ──
     for epoch in range(1, TRAIN_EPOCHS + 1):
         model.train()
         total_loss = 0.0
@@ -134,9 +117,8 @@ def train():
 
             optimizer.zero_grad()
 
-            x_p, x_main, _ = model(imgs)   # _ = boundary head (1 class, לא בשימוש)
+            x_p, x_main, _ = model(imgs) 
 
-            # upscale לגודל התווית
             h, w   = labels.shape[-2], labels.shape[-1]
             x_main = F.interpolate(x_main, size=(h, w), mode='bilinear', align_corners=False)
             x_p    = F.interpolate(x_p,    size=(h, w), mode='bilinear', align_corners=False)
@@ -149,7 +131,6 @@ def train():
         scheduler.step()
         avg_loss = total_loss / len(train_loader)
 
-        # ── Validation ──
         model.eval()
         miou_vals = []
         with torch.no_grad():
