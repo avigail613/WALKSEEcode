@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import KALMAN_MAX_MISSED, KALMAN_SPEED_THR, KALMAN_MATCH_DIST
 
-class KalmanTracker:#מחךקה-מעקב אחר עצם בודד, חישוב חיזוי
+class KalmanTracker:#מחךקה-מעקב אחר עצם בודד
     def __init__(self, cx: float, cy: float):
         self.x = np.array([cx, cy, 0.0, 0.0], dtype=np.float64)
         self.P = np.eye(4, dtype=np.float64) * 500.0
@@ -27,7 +27,7 @@ class KalmanTracker:#מחךקה-מעקב אחר עצם בודד, חישוב חי
         self.age    = 0   # כמות פריימים
         self.missed = 0   # כמה פריימים רצופים לא זיהינו את העצם
 
-    #חיזוי
+    #חיזוי מכשול אחד
     def predict(self) -> tuple:
         self.x = self.F @ self.x
         self.P = self.F @ self.P @ self.F.T + self.Q#T זה שכלוף
@@ -55,90 +55,61 @@ class KalmanTracker:#מחךקה-מעקב אחר עצם בודד, חישוב חי
         return speed > KALMAN_SPEED_THR
 
 
-class TrackerManager:#מחלקה להתאמת המכשולים השונים בין פריימים
+class TrackerManager:#מחלקה כמה מכשולים יחד
     def __init__(self):
         self._trackers: dict = {}   
         self._next_id: int  = 0
 
+    #עדכון כל המכשולים  
     def update(self, obstacles: list) -> list:
         if not obstacles:
-            # אין זיהויים — נבצע predict לכל tracker ונמחק ישנים
             self._predict_all()
             self._remove_lost()
             return []
-
-        # ── שלב 1: חיזוי מיקום לכל tracker קיים ──
         predictions = self._predict_all()
-
-        # ── שלב 2: התאמה (matching) ──
-        # מחלק כל זיהוי לtracker קיים או מסמן כחדש
         matched, unmatched = self._match(predictions, obstacles)
-
-        # ── שלב 3: עדכון trackers שנתאמו ──
         for tracker_id, obs_idx in matched.items():
             cx, cy = obstacles[obs_idx]['center']
             self._trackers[tracker_id].update(float(cx), float(cy))
-
-        # ── שלב 4: יצירת tracker חדש לזיהויים חדשים ──
         for obs_idx in unmatched:
             cx, cy = obstacles[obs_idx]['center']
             tid = self._next_id
             self._trackers[tid] = KalmanTracker(float(cx), float(cy))
             self._next_id += 1
-
-        # ── שלב 5: מחיקת trackers שנעלמו ──
         self._remove_lost()
-
-        # ── שלב 6: העשרת obstacles ──
-        # עדכון שדות moving ו-predicted_center לכל מכשול שנתאם
         for tracker_id, obs_idx in matched.items():
             tracker = self._trackers.get(tracker_id)
             if tracker is None:
                 continue
             px, py = tracker.get_predicted_position()
-            obstacles[obs_idx]['moving']            = tracker.is_moving()
-            obstacles[obs_idx]['predicted_center']  = (int(px), int(py))
-
+            obstacles[obs_idx]['moving'] = tracker.is_moving()
+            obstacles[obs_idx]['predicted_center'] = (int(px), int(py))
         return obstacles
 
-    # ── פונקציות פנימיות ──────────────────────────────────────
-
+    #חיזוי כמה מכשולים
     def _predict_all(self) -> dict:
-        """
-        מריץ predict() לכל tracker.
-        מחזיר: {tracker_id: (x_חזוי, y_חזוי)}
-        """
         predictions = {}
         for tid, tracker in self._trackers.items():
             predictions[tid] = tracker.predict()
         return predictions
 
+    #התאמת מכשולים לחיזויים
     def _match(self, predictions: dict, obstacles: list) -> tuple:
-        """
-        מתאים זיהויים מ-YOLO לtrackers קיימים לפי מרחק אוקלידי.
-        שיטה: Greedy — לכל זיהוי מוצא את הtracker הכי קרוב.
-
-        מחזיר:
-            matched   — {tracker_id: obs_idx}  התאמות שנמצאו
-            unmatched — [obs_idx]               זיהויים ללא tracker
-        """
-        matched:   dict = {}
+        matched: dict = {}
         unmatched: list = []
-        used_trackers:  set = set()
-
-        for obs_idx, obs in enumerate(obstacles):
+        used_trackers: set = set()
+        for obs_idx, obs in enumerate(obstacles):#פונקציה שמחלקת בין האיבר עצמו לאינדקס
             cx, cy = obs['center']
             best_tid  = None
             best_dist = float('inf')
-
             for tid, (px, py) in predictions.items():
-                if tid in used_trackers:
+                if tid in used_trackers:#אם כבר מצאת את המכשול הזב תמשיך הלאה
                     continue
                 dist = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
                 if dist < best_dist:
                     best_dist = dist
                     best_tid  = tid
-
+                    
             if best_tid is not None and best_dist < KALMAN_MATCH_DIST:
                 matched[best_tid] = obs_idx
                 used_trackers.add(best_tid)
@@ -147,10 +118,8 @@ class TrackerManager:#מחלקה להתאמת המכשולים השונים בי
 
         return matched, unmatched
 
+    #מחיקת מכשול שלא ראינו במשך כמה פריימים-מוגדר
     def _remove_lost(self) -> None:
-        """
-        מוחק trackers שלא ראינו יותר מ-KALMAN_MAX_MISSED פריימים רצופים.
-        """
         to_delete = [
             tid for tid, tracker in self._trackers.items()
             if tracker.missed > KALMAN_MAX_MISSED
