@@ -68,3 +68,21 @@ YOLO_BLOCKED_CLASSES = {
     "sky", "road", "sidewalk", "building", "wall", "floor", "ceiling",#שמיים, כביש, מדרכה,בניין, קיר, רצפה, תקרה
     "grass", "tree", "mountain", "sea", "river",#דשא, עץ, הר, ים נהר
 }
+
+#הגדרות LiDAR 
+LIDAR_IP   = "192.168.1.201"
+LIDAR_PORT = 2368 
+
+# Named Pipes (C++ ↔ Python)
+PIPE_FRAME     = r"\\.\pipe\walksee_frame"      # C++ כותב פריים, Python קורא
+PIPE_OBSTACLES = r"\\.\pipe\walksee_obstacles"  # Python כותב מכשולים, C++ קורא
+
+# Occupancy Grid 
+NUM_SECTORS      = 5      # 5 סקטורים × 72° = 360°
+SECTOR_DEG       = 72.0   # רוחב כל סקטור בדרגות
+LIDAR_BLOCK_DIST = 2.5    # מטרים — ליידר מתחת לזה → חסום
+CAM_BLOCK_DIST   = 3.0    # מטרים — מצלמה מתחת לזה → חסום
+BLOCK_THRESHOLD  = 0.5    # blocked >= זה → הסקטור חסום
+
+# Temporal Accumulation 
+TEMPORAL_WINDOW  = 10     # כמה פריימים לשמור לממוצע
