@@ -17,7 +17,7 @@ from config import (
 
 class IsraelSidewalkDataset(Dataset):
     def __init__(self, pairs, augment=False):
-        self.pairs   = pairs
+        self.pairs = pairs
         self.augment = augment
 
         self._remap = torch.zeros(256, dtype=torch.long)

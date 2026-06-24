@@ -1,9 +1,8 @@
 #include "occupancy_grid.h"
 #include <cmath>
 
-// ==================== API ראשי ====================
 OccupancyGrid OccupancyGridBuilder::build(
-    const std::vector<LidarPoint>&       lidar_pts,
+    const std::vector<LidarPoint>&lidar_pts,
     const std::vector<DetectedObstacle>& obstacles)
 {
     OccupancyGrid lidar_grid  = build_lidar_grid(lidar_pts);
@@ -19,7 +18,7 @@ OccupancyGrid OccupancyGridBuilder::build_lidar_grid(
     const std::vector<LidarPoint>& pts)
 {
     OccupancyGrid g;
-    int total  [NUM_SECTORS] = {};
+    int total [NUM_SECTORS] = {};
     int blocked[NUM_SECTORS] = {};
 
     for (const auto& p : pts) {
@@ -63,7 +62,7 @@ OccupancyGrid OccupancyGridBuilder::build_camera_grid(
     return g;
 }
 
-// ==================== Fusion ====================
+// Fusion 
 void OccupancyGridBuilder::fuse(OccupancyGrid& dst, const OccupancyGrid& src) {
     for (int s = 0; s < NUM_SECTORS; s++)
         if (src.blocked[s] > dst.blocked[s])

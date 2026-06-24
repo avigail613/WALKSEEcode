@@ -4,11 +4,11 @@
 #include "../../Sensor/lidar/lidar.h"
 #include "../../Sensor/pipe_bridge/pipe_bridge.h"
 
-// ---- קבועים ----
-constexpr int   NUM_SECTORS      = 5;      // 5 סקטורים × 72° = 360°
-constexpr float SECTOR_DEG       = 72.0f;
-constexpr float LIDAR_BLOCK_DIST = 2.5f;   // מטרים — ליידר מתחת ← חסום
-constexpr float CAM_BLOCK_DIST   = 3.0f;   // מטרים — מצלמה מתחת ← חסום
+//קבועים
+constexpr int NUM_SECTORS= 5; // 5 סקטורים × 72° = 360°
+constexpr float SECTOR_DEG = 72.0f;
+constexpr float LIDAR_BLOCK_DIST = 2.5f;// מטרים — ליידר מתחת ← חסום
+constexpr float CAM_BLOCK_DIST= 3.0f;// מטרים — מצלמה מתחת ← חסום
 constexpr float BLOCK_THRESHOLD  = 0.5f;   // blocked[] >= זה → סקטור חסום
 
 // ---- מבנה הגריד ----
